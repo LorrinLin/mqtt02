@@ -16,39 +16,46 @@ var(
 func main(){
 	start = time.Now()
 	uri := "iot.eclipse.org:1883"
-	
 	topic := "testTimeTopic"
-	var wg sync.WaitGroup
+	var wg,wg2 sync.WaitGroup
 	publisher := connect("pub",uri)
-	//publisher.Publish(topic, 0, false, "hello")
+	
 	for i:= 0; i<10;i++{
 		log.Println("-----------",i)
 		wg.Add(1)
-		go listen(uri, topic, &wg)
+		wg2.Add(1)
+		go listen(uri, topic, &wg, &wg2)
 	
 	}
-	//wg.Wait()
 	
-	publisher.Publish(topic, 0, false, "hello")
 	wg.Wait()
+	log.Println("------------ before publish")
+	token := publisher.Publish(topic, 0, false, "hello")
+	if token.Error() != nil{
+		log.Println("err in publish..",token.Error())
+	}
+	
 	duration := time.Since(start)
 	log.Println("-------------------",duration)
 	
+	wg2.Wait()
 }
 
-func listen(uri string, topic string, wg *sync.WaitGroup){
-	log.Println("-----------------")
+func listen(uri string, topic string, wg *sync.WaitGroup, wg2 *sync.WaitGroup){
+	log.Println("---------in listen function")
 	consumer := connect("sub",uri)
+	
 	consumer.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message){
 			log.Println("subscribe callback function..")
 		log.Print("---message from publisher:", string(msg.Payload()))
-		//wg.Done()
+		wg2.Done()
 	})
 	log.Println("listen finished..")
 	wg.Done()
 }
 
 func connect(clientId string, uri string) mqtt.Client{
+	log.Println("------------in connect function")
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(uri)
 	opts.SetClientID(clientId)
