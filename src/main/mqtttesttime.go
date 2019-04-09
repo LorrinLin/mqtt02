@@ -16,8 +16,9 @@ var(
 func main(){
 	
 	var wg,wg2,wg3 sync.WaitGroup
-	
-	uri := "iot.eclipse.org:1883"
+	//iot.eclipse.org
+	//142.93.161.16
+	uri := "142.93.161.16:1883"
 	topic := "testTimeTopic"
 	wg.Add(1)
 	

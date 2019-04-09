@@ -5,57 +5,62 @@ import (
 	"time"
 	"log"
 	"sync"
+	"strconv"
 )
 
 var(
-	
 	start time.Time
 )
 //This application is combined a publisher and so many consumers(100,1000),
 //The publisher publish message to the consumers, and then test the using time
 func main(){
-	start = time.Now()
-	uri := "iot.eclipse.org:1883"
-	topic := "testTimeTopic"
-	var wg,wg2 sync.WaitGroup
+	//iot.eclipse.org
+	//142.93.161.16
+	uri := "142.93.161.16:1883"
+	topic := "test"
+	t := 100
+	var wg, wg2 sync.WaitGroup
 	publisher := connect("pub",uri)
 	
-	for i:= 0; i<10;i++{
-		log.Println("-----------",i)
+	for i:= 0; i<t;i++{
 		wg.Add(1)
-		wg2.Add(1)
-		go listen(uri, topic, &wg, &wg2)
-	
+		go listen(uri, topic, i, &wg, &wg2)
 	}
-	
+	wg2.Add(t)
 	wg.Wait()
-	log.Println("------------ before publish")
-	token := publisher.Publish(topic, 0, false, "hello")
-	if token.Error() != nil{
-		log.Println("err in publish..",token.Error())
-	}
-	
-	duration := time.Since(start)
-	log.Println("-------------------",duration)
+	log.Println("------ before publish")
+	start = time.Now()
+
+	go publishMessage(publisher, topic)
 	
 	wg2.Wait()
+	duration := time.Since(start)
+	
+	log.Println("---- 100 consumers got message duration:",duration)
+	log.Println("---- average time duration:",duration/100)
+	log.Println("---------end---------")
 }
 
-func listen(uri string, topic string, wg *sync.WaitGroup, wg2 *sync.WaitGroup){
-	log.Println("---------in listen function")
-	consumer := connect("sub",uri)
-	
-	consumer.Subscribe(topic, 0, func(client mqtt.Client, msg mqtt.Message){
-			log.Println("subscribe callback function..")
-		log.Print("---message from publisher:", string(msg.Payload()))
-		wg2.Done()
+func publishMessage(publisher mqtt.Client, topic string){
+	if publisher.IsConnectionOpen(){
+		token := publisher.Publish(topic, 0, false, "hello")
+		if token.Error() != nil{
+			log.Println("err in publish..",token.Error())
+		}
+	}
+}
+
+func listen(uri string, topic string,i int,  wg *sync.WaitGroup, wg2 *sync.WaitGroup){
+	conId := "sub"+strconv.Itoa(i)
+	consumer := connect(conId,uri)
+	consumer.Subscribe("test", 0, func(client mqtt.Client, msg mqtt.Message){
+			log.Println("-----message from publisher:",string(msg.Payload()),i)
+			wg2.Done()
 	})
-	log.Println("listen finished..")
 	wg.Done()
 }
 
 func connect(clientId string, uri string) mqtt.Client{
-	log.Println("------------in connect function")
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(uri)
 	opts.SetClientID(clientId)
